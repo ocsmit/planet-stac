@@ -1,11 +1,10 @@
-import os
 import requests
-from requests.auth import HTTPBasicAuth
 from typing import Union, List
 from dataclasses import dataclass
 import pprint
 
 from item_types import AVAILABLE_ITEM_TYPES
+from auth import Authenticate
 
 
 @dataclass
@@ -25,10 +24,12 @@ class ItemIds:
         )
 
 
-class Search:
-    def __init__(self, item_type, api_key) -> None:
+class Search(Authenticate):
+    def __init__(self, item_type, api_key_name="PL_API_KEY") -> None:
+        super().__init__(api_key_name)
+
         self._item_type = item_type
-        self._api_key = api_key
+        self._api_key_name = api_key_name
         assert self.__validate_item_type() == True, "Invalid item type"
         pass
 
@@ -36,7 +37,7 @@ class Search:
         req = self.__construct_request(filter)
         response = requests.post(
             "https://api.planet.com/data/v1/quick-search",
-            auth=HTTPBasicAuth(os.getenv("PL_API_KEY"), ""),
+            auth=self.auth,
             json=req,
         )
         assert response.ok == True, response.text

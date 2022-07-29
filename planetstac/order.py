@@ -1,27 +1,29 @@
 import json
 import os
-import pathlib
-import time
-from dataclasses import dataclass
-from typing import List
+from typing import Dict, List, Union
 
 import requests
-from requests.auth import HTTPBasicAuth
-from search import Search
+from search import Search, ItemIds
+from auth import Authenticate
 
 
-from search import ItemIds
+class Order(Authenticate):
+    def __init__(
+        self,
+        name: str,
+        product_bundle: str,
+        items: ItemIds,
+        api_key_name: str = "PL_API_KEY",
+    ) -> None:
+        # Initalize authenication
+        super().__init__(api_key_name)
 
-
-class Order:
-    def __init__(self, name: str, product_bundle: str, items: ItemIds) -> None:
         self._name = name
         self._product_bundle = product_bundle
         self._items = items
 
         # Required for auth
         self._url = "https://api.planet.com/compute/ops/orders/v2"
-        self._auth = HTTPBasicAuth(os.getenv("PL_API_KEY"), "")
 
         # Create JSON to request order
         self._request = self.__construct_request()
@@ -37,7 +39,7 @@ class Order:
         self._order_url = self._null
         pass
 
-    def __construct_request(self):
+    def __construct_request(self) -> Dict[str, Union[str, List[str]]]:
         req = {}
         req["name"] = self._name
         req["products"] = [
@@ -49,7 +51,7 @@ class Order:
         ]
         return req
 
-    def place(self):
+    def place(self) -> None:
         headers = {"content-type": "application/json"}
         response = requests.post(
             self._url,
@@ -73,14 +75,16 @@ class Order:
         order_url = f"{self._url}/{order_id}"
         self._order_url = order_url
 
-    def cancel(self):
+    def cancel(self) -> None:
         self.__taste_of_order()
         response = requests.put(self._order_url, auth=self._auth)
         assert response.ok == True, response.text
         self._state = 0  # set to canceled
 
-    def status(self):
-        self.__taste_of_order()
+    def status(self) -> str:
+        if self._order_url == self._null:
+            return "unplaced"
+
         return requests.get(self._order_url, auth=self._auth).json()["state"]
 
     @property
@@ -91,7 +95,7 @@ class Order:
     def order_url(self):
         return self._order_url
 
-    def __taste_of_order(self):
+    def __taste_of_order(self) -> None:
         if self._order_url == self._null:
             raise ValueError("Order has not been placed")
         else:
@@ -142,11 +146,12 @@ combined_filter = {
 }
 
 
-ss = Search(ITEM_TYPE, os.getenv("PL_API_KEY"))
+ss = Search(ITEM_TYPE)
 items = ss.get(combined_filter)
-print(items)
+# print(items)
 so = Order("api_test", "analytic_udm2", items)
-so.place()
 print(so.status())
-print(so.cancel())
-print(so.status())
+# so.place()
+# print(so.status())
+# print(so.cancel())
+# print(so.status())
