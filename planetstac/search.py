@@ -3,8 +3,12 @@ from typing import Union, List
 from dataclasses import dataclass
 import pprint
 
-from item_types import AVAILABLE_ITEM_TYPES
-from auth import Authenticate
+if __package__:
+    from .item_types import AVAILABLE_ITEM_TYPES
+    from .auth import Authenticate
+else:
+    from item_types import AVAILABLE_ITEM_TYPES
+    from auth import Authenticate
 
 
 @dataclass
@@ -25,11 +29,11 @@ class ItemIds:
 
 
 class Search(Authenticate):
-    def __init__(self, item_type, api_key_name="PL_API_KEY") -> None:
-        super().__init__(api_key_name)
+    def __init__(self, item_type, **kwargs) -> None:
+        # Set up authtication
+        super().__init__(**kwargs)
 
         self._item_type = item_type
-        self._api_key_name = api_key_name
         assert self.__validate_item_type() == True, "Invalid item type"
         pass
 
@@ -37,7 +41,7 @@ class Search(Authenticate):
         req = self.__construct_request(filter)
         response = requests.post(
             "https://api.planet.com/data/v1/quick-search",
-            auth=self.auth,
+            auth=self.authentication,
             json=req,
         )
         assert response.ok == True, response.text

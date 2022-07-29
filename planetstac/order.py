@@ -3,8 +3,13 @@ import os
 from typing import Dict, List, Union
 
 import requests
-from search import Search, ItemIds
-from auth import Authenticate
+
+if __package__:
+    from .search import Search, ItemIds
+    from .auth import Authenticate
+else:
+    from search import Search, ItemIds
+    from auth import Authenticate
 
 
 class Order(Authenticate):
@@ -13,10 +18,10 @@ class Order(Authenticate):
         name: str,
         product_bundle: str,
         items: ItemIds,
-        api_key_name: str = "PL_API_KEY",
+        **kwargs,
     ) -> None:
         # Initalize authenication
-        super().__init__(api_key_name)
+        super().__init__(**kwargs)
 
         self._name = name
         self._product_bundle = product_bundle
@@ -56,7 +61,7 @@ class Order(Authenticate):
         response = requests.post(
             self._url,
             data=json.dumps(self._request),
-            auth=self._auth,
+            auth=self.authentication,
             headers=headers,
         )
         assert response.ok == True, f"{response.status_code} {response.text}"
