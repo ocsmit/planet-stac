@@ -57,20 +57,26 @@ class Order:
             auth=self._auth,
             headers=headers,
         )
-        print(response)
         assert response.ok == True, f"{response.status_code} {response.text}"
+
+        if response.status_code == 429:
+            raise Exception("Rate limit error")
+        elif response.ok != True:
+            print(
+                f"ERROR: unsuccessful request, Got response code"
+                f"{response.status_code}, reason is {response.reason}"
+            )
         self._state = 1  # Set to running
 
         self._response = response
         order_id = response.json()["id"]
-        order_url = f"{orders_url}/{order_id}"
+        order_url = f"{self._url}/{order_id}"
         self._order_url = order_url
 
     def cancel(self):
         self.__taste_of_order()
         response = requests.put(self._order_url, auth=self._auth)
-        assert response.status_code == 409, response.text
-
+        assert response.ok == True, response.text
         self._state = 0  # set to canceled
 
     def status(self):
@@ -88,8 +94,6 @@ class Order:
     def __taste_of_order(self):
         if self._order_url == self._null:
             raise ValueError("Order has not been placed")
-        elif self._state == 0:
-            raise ValueError("Order has been canceled")
         else:
             # Order has been placed
             pass
@@ -97,23 +101,52 @@ class Order:
 
 ITEM_TYPE = "PSScene"
 
-ss = Search(ITEM_TYPE, PLANET_API_KEY)
-items = ss.get(combined_filter)
-print(ss.item_type)
-so = Order("simple", "analytic_udm2", items)
-req = {
-    "name": "simple order",
-    "products": [
-        {
-            "item_ids": ["20151119_025740_0c74", "20151119_025741_0c74"],
-            "item_type": "PSScene",
-            "product_bundle": "analytic_udm2",
-        }
+geom = {
+    "type": "Polygon",
+    "coordinates": [
+        [
+            [-78.67905020713806, 35.780212341409914],
+            [-78.67378234863281, 35.780212341409914],
+            [-78.67378234863281, 35.782684221280086],
+            [-78.67905020713806, 35.782684221280086],
+            [-78.67905020713806, 35.780212341409914],
+        ]
     ],
 }
 
-print(json.dumps(so.request))
-print(json.dumps(req))
+geometry_filter = {
+    "type": "GeometryFilter",
+    "field_name": "geometry",
+    "config": geom,
+}
+
+# filter images acquired in a certain date range
+date_range_filter = {
+    "type": "DateRangeFilter",
+    "field_name": "acquired",
+    "config": {"gte": "2016-07-01T00:00:00.000Z", "lte": "2016-08-01T00:00:00.000Z"},
+}
+
+# filter any images which are more than 50% clouds
+cloud_cover_filter = {
+    "type": "RangeFilter",
+    "field_name": "cloud_cover",
+    "config": {"lte": 0.5},
+}
+
+# create a filter that combines our geo and date filters
+# could also use an "OrFilter"
+combined_filter = {
+    "type": "AndFilter",
+    "config": [geometry_filter, date_range_filter, cloud_cover_filter],
+}
+
+
+ss = Search(ITEM_TYPE, os.getenv("PL_API_KEY"))
+items = ss.get(combined_filter)
+print(items)
+so = Order("api_test", "analytic_udm2", items)
 so.place()
 print(so.status())
 print(so.cancel())
+print(so.status())
