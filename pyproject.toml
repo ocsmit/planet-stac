@@ -1,0 +1,16 @@
+[tool.pyright]
+include = ["planetstac"]
+exclude = [
+    "**/__pycache__",
+]
+defineConstant = { DEBUG = true }
+
+reportMissingImports = true
+reportMissingTypeStubs = false
+
+pythonVersion = "3.8"
+pythonPlatform = "Linux"
+
+executionEnvironments = [
+  { root = "planetstac" }
+]
