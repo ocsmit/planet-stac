@@ -34,7 +34,8 @@ class Search(Authenticate):
         super().__init__(**kwargs)
 
         self._item_type = item_type
-        assert self.__validate_item_type() == True, "Invalid item type"
+        if self.__validate_item_type() == False:
+            raise ValueError("Invalid item type")
         pass
 
     def get(self, filter=None) -> ItemIds:
