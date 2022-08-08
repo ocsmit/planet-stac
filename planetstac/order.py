@@ -1,6 +1,7 @@
 import json
 import os
 from typing import Dict, List, Union
+from dataclasses import dataclass
 
 import requests
 
@@ -133,7 +134,7 @@ geometry_filter = {
 date_range_filter = {
     "type": "DateRangeFilter",
     "field_name": "acquired",
-    "config": {"gte": "2016-07-01T00:00:00.000Z", "lte": "2016-08-01T00:00:00.000Z"},
+    "config": {"gte": "2018-08-30T00:00:00.000Z", "lte": "2018-09-01T00:00:00.000Z"},
 }
 
 # filter any images which are more than 50% clouds
@@ -143,19 +144,23 @@ cloud_cover_filter = {
     "config": {"lte": 0.5},
 }
 
+
+asset_filter = {"type": "AssetFilter", "config": ["ortho_analytic_4b_sr"]}
+
 # create a filter that combines our geo and date filters
 # could also use an "OrFilter"
 combined_filter = {
     "type": "AndFilter",
-    "config": [geometry_filter, date_range_filter, cloud_cover_filter],
+    "config": [geometry_filter, date_range_filter, cloud_cover_filter, asset_filter],
 }
 
 
 ss = Search(ITEM_TYPE)
 items = ss.get(combined_filter)
-# print(items)
-so = Order("api_test", "analytic_udm2", items)
-print(so.status())
+print(items.ids)
+so = Order("api_test", "analytic", items)
+# print(so.request)
+# print(so.status())
 # so.place()
 # print(so.status())
 # print(so.cancel())
