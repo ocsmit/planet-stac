@@ -4,7 +4,8 @@ import warnings
 
 
 class Authenticate(object):
-    def __init__(self, api_key_name="PL_API_KEY") -> None:
+    def __init__(self, api_key_name="PL_API_KEY", **kwargs) -> None:
+        self._kwargs = kwargs
         self._key = str(api_key_name)
         self._ok = False
         self._auth = self._create_auth()

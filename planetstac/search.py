@@ -1,5 +1,5 @@
 import requests
-from typing import Union, List
+from typing import Any, Dict, Union, List
 from dataclasses import dataclass
 import pprint
 
@@ -10,19 +10,23 @@ else:
     from item_types import AVAILABLE_ITEM_TYPES
     from auth import Authenticate
 
+SearchRequest = Dict[str, Union[List[str], Dict[str, Any]]]
 
+# NOTIMPLEMENTED
 class SearchFilter:
     def __init__(
         self,
         name: str,
         item_type: str,
+        geom: List[str],
         assets: Union[List[str], None] = None,
-        geom: Union[List[str], None] = None,
+        dates: Union[List[str], None] = None,
     ):
         self._name = name
         self._item_type = item_type
         self._assets = assets
         self._geom = geom
+        self._dates = dates
 
         self._filter_lookup = {
             "geom": "GeometryFilter",
@@ -35,54 +39,42 @@ class SearchFilter:
         }
 
 
-ITEM_TYPE = "PSScene"
-
-geom = {
-    "type": "Polygon",
-    "coordinates": [
-        [
-            [-78.67905020713806, 35.780212341409914],
-            [-78.67378234863281, 35.780212341409914],
-            [-78.67378234863281, 35.782684221280086],
-            [-78.67905020713806, 35.782684221280086],
-            [-78.67905020713806, 35.780212341409914],
-        ]
-    ],
-}
-
-geometry_filter = {
-    "type": "GeometryFilter",
-    "field_name": "geometry",
-    "config": geom,
-}
-
-# filter images acquired in a certain date range
-date_range_filter = {
-    "type": "DateRangeFilter",
-    "field_name": "acquired",
-    "config": {"gte": "2018-08-30T00:00:00.000Z", "lte": "2018-09-01T00:00:00.000Z"},
-}
-
-# filter any images which are more than 50% clouds
-cloud_cover_filter = {
-    "type": "RangeFilter",
-    "field_name": "cloud_cover",
-    "config": {"lte": 0.5},
-}
-
-
-asset_filter = {"type": "AssetFilter", "config": ["ortho_analytic_4b_sr"]}
-
-# create a filter that combines our geo and date filters
-# could also use an "OrFilter"
-combined_filter = {
-    "type": "AndFilter",
-    "config": [geometry_filter, date_range_filter, cloud_cover_filter, asset_filter],
+AVAILABLE_FILTERS = {
+    "geom": ("GeometryFilter", True),
+    "asset": ("AssetFilter", False),
+    "range": ("RangeFilter", True),
+    "date": ("DateRangeFilter", False),
+    "number": ("NumberInFilter", True),
+    "string": ("StringInFilter", True),
+    "update": ("UpdateFilter", True),
+    "permission": ("PermissionFilter", False),
+    "and": ("AndFilter", False),
+    "not": ("NotFilter", False),
+    "or": ("OrFilter", False),
 }
 
 
 @dataclass
+class Filter:
+    type: str
+    config: Any
+    field_name: Union[str, None] = None
+
+
+def create_filter(type, config, field_name=None):
+    assert type in AVAILABLE_FILTERS.keys(), "Improper filter type"
+    pass
+
+
+# END NOTIMPLEMENTED
+
+
+@dataclass
 class ItemIds:
+    """
+    simple struct to keep item type and ids
+    """
+
     item_type: str
     ids: List[str]
 
@@ -99,57 +91,69 @@ class ItemIds:
 
 
 class Search(Authenticate):
-    def __init__(
-        self,
-        item_type,
-        assets: Union[List[str], None] = None,
-        geom: Union[List[str], None] = None,
-        **kwargs
-    ) -> None:
+    def __init__(self, item_type, filter, **kwargs) -> None:
+        """
+        Class for searching Planet API
+
+        TODO: Document
+
+        returns
+        -------
+            items: ItemIds
+
+        """
         # Set up authtication
         super().__init__(**kwargs)
 
         self._item_type = item_type
-        self._assets = assets
-        self._geom = geom
+        self._request = None
         if self.__validate_item_type() == False:
             raise ValueError("Invalid item type")
-        pass
 
-    def get(self, filter=None) -> ItemIds:
-        req = self.__construct_request(filter)
+        # Construct request and post
+        self._request = self.__construct_request(filter)
         response = requests.post(
             "https://api.planet.com/data/v1/quick-search",
             auth=self.authentication,
-            json=req,
+            json=self._request,
         )
+        # Check if request suceeded
         assert response.ok == True, response.text
+
+        # Assign variables based off response
         self._response = response
         self._ids = [feature["id"] for feature in response.json()["features"]]
-        return ItemIds(self._item_type, self._ids)
 
     def __validate_item_type(self) -> bool:
+        """
+        Private method for validating item types
+        """
         if self._item_type not in AVAILABLE_ITEM_TYPES:
             return False
         return True
 
-    def __construct_request(self, filter) -> dict:
+    def __construct_request(self, filter) -> SearchRequest:
+        """
+        Private method to construct request
+        """
         search_request = {
             "item_types": [self._item_type],
+            "filter": filter,
         }
-        if filter is not None:
-            search_request["filter"] = filter
-
         return search_request
 
     @property
-    def ids(self) -> Union[None, List[str]]:
-        return self._ids
+    def items(self) -> ItemIds:
+        return ItemIds(self._item_type, self._ids)
 
     @property
-    def response(self):
+    def response(self) -> requests.Response:
         return self._response
 
     @property
-    def item_type(self):
+    def item_type(self) -> str:
         return self._item_type
+
+    @property
+    def request(self) -> Union[SearchRequest, None]:
+        return self._request
