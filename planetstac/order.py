@@ -2,14 +2,17 @@ import json
 import os
 from typing import Dict, List, Union, Any
 from dataclasses import dataclass
+import warnings
 
 import requests
 
 if __package__:
-    from .search import Search, ItemIds
+    from .consts import ORDER_URL
+    from .search import ItemIds
     from .auth import Authenticate
 else:
-    from search import Search, ItemIds
+    from consts import ORDER_URL
+    from search import ItemIds
     from auth import Authenticate
 
 
@@ -24,15 +27,15 @@ class Order(Authenticate):
         # Initalize authenication
         super().__init__(**kwargs)
 
+        # Initialize params for request
         self._name = name
         self._product_bundle = product_bundle
         self._items = items
         self._tool_req = None
-
         self._stac = kwargs.get("stac", False)
 
-        # Required for auth
-        self._url = "https://api.planet.com/compute/ops/orders/v2"
+        # Planet API order endpoint
+        self._url = ORDER_URL
 
         # Create JSON to request order
         self._request = self.__construct_request()
@@ -72,6 +75,7 @@ class Order(Authenticate):
     def place(self) -> None:
         headers = {"content-type": "application/json"}
 
+        # Send request
         response = requests.post(
             self._url,
             data=json.dumps(self._request),
@@ -95,10 +99,21 @@ class Order(Authenticate):
         self._order_url = order_url
 
     def cancel(self) -> None:
+        """
+        Cancel order that has been placed.
+        NOTE: If order request has reached "running" state then it can
+              no longer be canceled
+        """
+        # Check if order has been placed
         self.__taste_of_order()
-        response = requests.put(self._order_url, auth=self.authentication)
-        assert response.ok == True, response.text
-        self._state = 0  # set to canceled
+        if self.status() == "running":
+            warnings.warn(
+                UserWarning("Cancel Warning, order status has already started running")
+            )
+        else:
+            response = requests.put(self._order_url, auth=self.authentication)
+            assert response.ok == True, response.text
+            self._state = 0  # set to canceled
 
     def status(self) -> str:
         if self._order_url == self._null:
@@ -112,17 +127,13 @@ class Order(Authenticate):
         self._tool_req = []
         self._request["tools"] = [{"clip": {"aoi": geom}}]
 
-    @property
-    def request(self):
-        return self._request
-
-    @property
-    def order_url(self):
-        return self._order_url
-
     def __taste_of_order(self) -> None:
         if self._order_url == self._null:
             raise ValueError("Order has not been placed")
         else:
             # Order has been placed
             pass
+
+    @property
+    def order_url(self):
+        return self._order_url
