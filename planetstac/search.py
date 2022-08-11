@@ -4,69 +4,13 @@ from dataclasses import dataclass
 import pprint
 
 if __package__:
-    from .item_types import AVAILABLE_ITEM_TYPES
+    from .consts import AVAILABLE_ITEM_TYPES
     from .auth import Authenticate
 else:
-    from item_types import AVAILABLE_ITEM_TYPES
+    from consts import AVAILABLE_ITEM_TYPES
     from auth import Authenticate
 
 SearchRequest = Dict[str, Union[List[str], Dict[str, Any]]]
-
-# NOTIMPLEMENTED
-class SearchFilter:
-    def __init__(
-        self,
-        name: str,
-        item_type: str,
-        geom: List[str],
-        assets: Union[List[str], None] = None,
-        dates: Union[List[str], None] = None,
-    ):
-        self._name = name
-        self._item_type = item_type
-        self._assets = assets
-        self._geom = geom
-        self._dates = dates
-
-        self._filter_lookup = {
-            "geom": "GeometryFilter",
-            "assets": "AssetFilter",
-            "range": "RangeFilter",
-            "date": "DateRangeFilter",
-            "number": "NumberInFilter",
-            "string": "StringInFilter",
-            "update": "UpdateFilter",
-        }
-
-
-AVAILABLE_FILTERS = {
-    "geom": ("GeometryFilter", True),
-    "asset": ("AssetFilter", False),
-    "range": ("RangeFilter", True),
-    "date": ("DateRangeFilter", False),
-    "number": ("NumberInFilter", True),
-    "string": ("StringInFilter", True),
-    "update": ("UpdateFilter", True),
-    "permission": ("PermissionFilter", False),
-    "and": ("AndFilter", False),
-    "not": ("NotFilter", False),
-    "or": ("OrFilter", False),
-}
-
-
-@dataclass
-class Filter:
-    type: str
-    config: Any
-    field_name: Union[str, None] = None
-
-
-def create_filter(type, config, field_name=None):
-    assert type in AVAILABLE_FILTERS.keys(), "Improper filter type"
-    pass
-
-
-# END NOTIMPLEMENTED
 
 
 @dataclass
