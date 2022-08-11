@@ -1,47 +1,87 @@
-# order = response.json()["orders"]
-orders_url = "https://api.planet.com/compute/ops/orders/v2"
+from search import Search
 
-headers = {"content-type": "application/json"}
 
-# request = {
-#        "name": "Gangneung",
-#        prooducts
+ITEM_TYPE = "PSScene"
 
 geom = {
     "type": "Polygon",
     "coordinates": [
         [
-            [488.86908173561096, 37.75541378624299],
-            [488.87455344200134, 37.75541378624299],
-            [488.87455344200134, 37.758577712772066],
-            [488.86908173561096, 37.758577712772066],
-            [488.86908173561096, 37.75541378624299],
+            [-78.67905020713806, 35.780212341409914],
+            [-78.67378234863281, 35.780212341409914],
+            [-78.67378234863281, 35.782684221280086],
+            [-78.67905020713806, 35.782684221280086],
+            [-78.67905020713806, 35.780212341409914],
         ]
     ],
 }
 
 
-geom_filter = {
+geom = {
+    "type": "Polygon",
+    "coordinates": [
+        [
+            [128.86421084403992, 37.75191040678909],
+            [128.87457489967343, 37.75191040678909],
+            [128.87457489967343, 37.764574381819955],
+            [128.86421084403992, 37.764574381819955],
+            [128.86421084403992, 37.75191040678909],
+        ]
+    ],
+}
+
+geometry_filter = {
     "type": "GeometryFilter",
     "field_name": "geometry",
     "config": geom,
 }
 
+# filter images acquired in a certain date range
 date_range_filter = {
     "type": "DateRangeFilter",
     "field_name": "acquired",
-    "config": {"gte": "2020-08-31T00:00:00.000Z", "lte": "2020-09-04T00:00:00.000Z"},
+    "config": {"lte": "2022-09-01T00:00:00.000Z"},
 }
 
-# only get images which have <50% cloud coverage
+# filter any images which are more than 50% clouds
 cloud_cover_filter = {
     "type": "RangeFilter",
     "field_name": "cloud_cover",
-    "config": {"lte": 0.5},
+    "config": {"lte": 0.2},
 }
 
-# combine our geo, date, cloud filters
+
+asset_filter = {"type": "AssetFilter", "config": ["ortho_analytic_4b_sr"]}
+
+standard = {
+    "type": "StringInFilter",
+    "config": ["standard"],
+    "field_name": "quality_category",
+}
+
+# create a filter that combines our geo and date filters
+# could also use an "OrFilter"
 combined_filter = {
     "type": "AndFilter",
-    "config": [geom_filter, date_range_filter, cloud_cover_filter],
+    "config": [
+        geometry_filter,
+        date_range_filter,
+        cloud_cover_filter,
+        asset_filter,
+        standard,
+    ],
 }
+
+ss = Search(ITEM_TYPE)
+items = ss.get(combined_filter)
+print(ss.request)
+# print(items.ids)
+print(items)
+so = Order("api_test", "analytic_sr_udm2", items, stac=True)
+# so.tools(geom)
+# print(so.request)
+# print(so.status())
+# so.place()
+# print(so.status())
+# print(so.cancel())
+# print(so.status())

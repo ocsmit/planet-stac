@@ -1,14 +1,18 @@
 import json
 import os
-from typing import Dict, List, Union
+from typing import Dict, List, Union, Any
+from dataclasses import dataclass
+import warnings
 
 import requests
 
 if __package__:
-    from .search import Search, ItemIds
+    from .consts import ORDER_URL
+    from .search import ItemIds
     from .auth import Authenticate
 else:
-    from search import Search, ItemIds
+    from consts import ORDER_URL
+    from search import ItemIds
     from auth import Authenticate
 
 
@@ -23,12 +27,15 @@ class Order(Authenticate):
         # Initalize authenication
         super().__init__(**kwargs)
 
+        # Initialize params for request
         self._name = name
         self._product_bundle = product_bundle
         self._items = items
+        self._tool_req = None
+        self._stac = kwargs.get("stac", False)
 
-        # Required for auth
-        self._url = "https://api.planet.com/compute/ops/orders/v2"
+        # Planet API order endpoint
+        self._url = ORDER_URL
 
         # Create JSON to request order
         self._request = self.__construct_request()
@@ -42,9 +49,13 @@ class Order(Authenticate):
         # or bytes
         self._null = b"\x00"
         self._order_url = self._null
+
         pass
 
-    def __construct_request(self) -> Dict[str, Union[str, List[str]]]:
+    def __construct_request(self) -> Dict[str, Union[str, Any]]:
+        """
+        construct request based of init parameters
+        """
         req = {}
         req["name"] = self._name
         req["products"] = [
@@ -54,10 +65,17 @@ class Order(Authenticate):
                 "product_bundle": self._product_bundle,
             }
         ]
+        if self._stac == True:
+            req["metadata"] = {"stac": {}}
+
+        # Initalize tools as empty entry
+        req["tools"] = self._tool_req
         return req
 
     def place(self) -> None:
         headers = {"content-type": "application/json"}
+
+        # Send request
         response = requests.post(
             self._url,
             data=json.dumps(self._request),
@@ -81,24 +99,33 @@ class Order(Authenticate):
         self._order_url = order_url
 
     def cancel(self) -> None:
+        """
+        Cancel order that has been placed.
+        NOTE: If order request has reached "running" state then it can
+              no longer be canceled
+        """
+        # Check if order has been placed
         self.__taste_of_order()
-        response = requests.put(self._order_url, auth=self._auth)
-        assert response.ok == True, response.text
-        self._state = 0  # set to canceled
+        if self.status() == "running":
+            warnings.warn(
+                UserWarning("Cancel Warning, order status has already started running")
+            )
+        else:
+            response = requests.put(self._order_url, auth=self.authentication)
+            assert response.ok == True, response.text
+            self._state = 0  # set to canceled
 
     def status(self) -> str:
         if self._order_url == self._null:
             return "unplaced"
 
-        return requests.get(self._order_url, auth=self._auth).json()["state"]
+        return requests.get(self._order_url, auth=self.authentication).json()["state"]
 
-    @property
-    def request(self):
-        return self._request
-
-    @property
-    def order_url(self):
-        return self._order_url
+    def tools(self, geom):
+        # What is best practice? Have tools defined at initialization as
+        # parameters or call seperatly to update the request?
+        self._tool_req = []
+        self._request["tools"] = [{"clip": {"aoi": geom}}]
 
     def __taste_of_order(self) -> None:
         if self._order_url == self._null:
@@ -107,56 +134,6 @@ class Order(Authenticate):
             # Order has been placed
             pass
 
-
-ITEM_TYPE = "PSScene"
-
-geom = {
-    "type": "Polygon",
-    "coordinates": [
-        [
-            [-78.67905020713806, 35.780212341409914],
-            [-78.67378234863281, 35.780212341409914],
-            [-78.67378234863281, 35.782684221280086],
-            [-78.67905020713806, 35.782684221280086],
-            [-78.67905020713806, 35.780212341409914],
-        ]
-    ],
-}
-
-geometry_filter = {
-    "type": "GeometryFilter",
-    "field_name": "geometry",
-    "config": geom,
-}
-
-# filter images acquired in a certain date range
-date_range_filter = {
-    "type": "DateRangeFilter",
-    "field_name": "acquired",
-    "config": {"gte": "2016-07-01T00:00:00.000Z", "lte": "2016-08-01T00:00:00.000Z"},
-}
-
-# filter any images which are more than 50% clouds
-cloud_cover_filter = {
-    "type": "RangeFilter",
-    "field_name": "cloud_cover",
-    "config": {"lte": 0.5},
-}
-
-# create a filter that combines our geo and date filters
-# could also use an "OrFilter"
-combined_filter = {
-    "type": "AndFilter",
-    "config": [geometry_filter, date_range_filter, cloud_cover_filter],
-}
-
-
-ss = Search(ITEM_TYPE)
-items = ss.get(combined_filter)
-# print(items)
-so = Order("api_test", "analytic_udm2", items)
-print(so.status())
-# so.place()
-# print(so.status())
-# print(so.cancel())
-# print(so.status())
+    @property
+    def order_url(self):
+        return self._order_url

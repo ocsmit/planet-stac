@@ -1,18 +1,24 @@
 import requests
-from typing import Union, List
+from typing import Any, Dict, Union, List
 from dataclasses import dataclass
 import pprint
 
 if __package__:
-    from .item_types import AVAILABLE_ITEM_TYPES
+    from .consts import AVAILABLE_ITEM_TYPES
     from .auth import Authenticate
 else:
-    from item_types import AVAILABLE_ITEM_TYPES
+    from consts import AVAILABLE_ITEM_TYPES
     from auth import Authenticate
+
+SearchRequest = Dict[str, Union[List[str], Dict[str, Any]]]
 
 
 @dataclass
 class ItemIds:
+    """
+    simple struct to keep item type and ids
+    """
+
     item_type: str
     ids: List[str]
 
@@ -29,50 +35,69 @@ class ItemIds:
 
 
 class Search(Authenticate):
-    def __init__(self, item_type, **kwargs) -> None:
+    def __init__(self, item_type, filter, **kwargs) -> None:
+        """
+        Class for searching Planet API
+
+        TODO: Document
+
+        returns
+        -------
+            items: ItemIds
+
+        """
         # Set up authtication
         super().__init__(**kwargs)
 
         self._item_type = item_type
+        self._request = None
         if self.__validate_item_type() == False:
             raise ValueError("Invalid item type")
-        pass
 
-    def get(self, filter=None) -> ItemIds:
-        req = self.__construct_request(filter)
+        # Construct request and post
+        self._request = self.__construct_request(filter)
         response = requests.post(
             "https://api.planet.com/data/v1/quick-search",
             auth=self.authentication,
-            json=req,
+            json=self._request,
         )
+        # Check if request suceeded
         assert response.ok == True, response.text
+
+        # Assign variables based off response
         self._response = response
         self._ids = [feature["id"] for feature in response.json()["features"]]
-        print(response.json()["features"][1])
-        return ItemIds(self._item_type, self._ids)
 
     def __validate_item_type(self) -> bool:
+        """
+        Private method for validating item types
+        """
         if self._item_type not in AVAILABLE_ITEM_TYPES:
             return False
         return True
 
-    def __construct_request(self, filter) -> dict:
+    def __construct_request(self, filter) -> SearchRequest:
+        """
+        Private method to construct request
+        """
         search_request = {
             "item_types": [self._item_type],
+            "filter": filter,
         }
-        if filter is not None:
-            search_request["filter"] = filter
-
         return search_request
 
     @property
-    def ids(self) -> Union[None, List[str]]:
-        return self._ids
+    def items(self) -> ItemIds:
+        return ItemIds(self._item_type, self._ids)
 
     @property
-    def response(self):
+    def response(self) -> requests.Response:
         return self._response
 
     @property
-    def item_type(self):
+    def item_type(self) -> str:
         return self._item_type
+
+    @property
+    def request(self) -> Union[SearchRequest, None]:
+        return self._request
