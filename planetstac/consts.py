@@ -1,4 +1,7 @@
+SEARCH_URL = "https://api.planet.com/data/v1/quick-search"
 ORDER_URL = "https://api.planet.com/compute/ops/orders/v2"
+HEADERS = {"content-type": "application/json"}
+
 
 AVAILABLE_ITEM_TYPES = [
     "PSScene",

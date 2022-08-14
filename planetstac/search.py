@@ -2,18 +2,19 @@ import requests
 from typing import Any, Dict, Union, List
 from dataclasses import dataclass
 import pprint
+from typing import NamedTuple
 
 if __package__:
-    from .consts import AVAILABLE_ITEM_TYPES
-    from .auth import Authenticate
+    from .consts import AVAILABLE_ITEM_TYPES, SEARCH_URL
+    from .auth import Authentication, authenticate
 else:
-    from consts import AVAILABLE_ITEM_TYPES
-    from auth import Authenticate
+    from consts import AVAILABLE_ITEM_TYPES, SEARCH_URL
+    from auth import Authentication, authenticate
 
 SearchRequest = Dict[str, Union[List[str], Dict[str, Any]]]
 
 
-@dataclass
+@dataclass(frozen=True)
 class ItemIds:
     """
     simple struct to keep item type and ids
@@ -34,70 +35,39 @@ class ItemIds:
         )
 
 
-class Search(Authenticate):
-    def __init__(self, item_type, filter, **kwargs) -> None:
-        """
-        Class for searching Planet API
+def validate_item_type(item_type: str) -> bool:
+    """
+    Private func for validating item types
+    """
+    if item_type not in AVAILABLE_ITEM_TYPES:
+        return False
+    return True
 
-        TODO: Document
 
-        returns
-        -------
-            items: ItemIds
+def construct_search_request(item_type: str, filter) -> SearchRequest:
+    """
+    Private method to construct request
+    """
+    search_request = {
+        "item_types": [item_type],
+        "filter": filter,
+    }
+    return search_request
 
-        """
-        # Set up authtication
-        super().__init__(**kwargs)
 
-        self._item_type = item_type
-        self._request = None
-        if self.__validate_item_type() == False:
-            raise ValueError("Invalid item type")
+def search(item_type: str, filter, **kwargs) -> ItemIds:
+    authentication = authenticate(**kwargs)
 
-        # Construct request and post
-        self._request = self.__construct_request(filter)
-        response = requests.post(
-            "https://api.planet.com/data/v1/quick-search",
-            auth=self.authentication,
-            json=self._request,
-        )
-        # Check if request suceeded
-        assert response.ok == True, response.text
+    assert validate_item_type(item_type) == True, ValueError("Invalid item type")
 
-        # Assign variables based off response
-        self._response = response
-        self._ids = [feature["id"] for feature in response.json()["features"]]
+    request = construct_search_request(item_type, filter)
+    response = requests.post(
+        SEARCH_URL,
+        auth=authentication.auth,
+        json=request,
+    )
 
-    def __validate_item_type(self) -> bool:
-        """
-        Private method for validating item types
-        """
-        if self._item_type not in AVAILABLE_ITEM_TYPES:
-            return False
-        return True
+    assert response.ok == True, response.text
+    ids = [feature["id"] for feature in response.json()["features"]]
 
-    def __construct_request(self, filter) -> SearchRequest:
-        """
-        Private method to construct request
-        """
-        search_request = {
-            "item_types": [self._item_type],
-            "filter": filter,
-        }
-        return search_request
-
-    @property
-    def items(self) -> ItemIds:
-        return ItemIds(self._item_type, self._ids)
-
-    @property
-    def response(self) -> requests.Response:
-        return self._response
-
-    @property
-    def item_type(self) -> str:
-        return self._item_type
-
-    @property
-    def request(self) -> Union[SearchRequest, None]:
-        return self._request
+    return ItemIds(item_type, ids)
