@@ -1,14 +1,14 @@
 import pytest
 
-from planetstac.auth import Authenticate
+from planetstac.auth import Authentication, authenticate
 
 
 def test_authenticate_success():
-    auth = Authenticate()
+    auth = authenticate()
     assert auth.ok == True, f"Authenticate failed when not supposed to"
 
 
-@pytest.mark.filterwarnings("ignore:env var")
+@pytest.mark.filterwarnings("ignore:Env Var")
 def test_authenticate_failure():
-    auth = Authenticate("BAD_VAR")
+    auth = authenticate("BAD_VAR")
     assert auth.ok == False, f"Authenticate succeded when not supposed to"

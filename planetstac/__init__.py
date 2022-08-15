@@ -1,4 +1,4 @@
-from .auth import Authenticate, authenticate
-from .search import Search, ItemIds
-from .order import Order
+from .auth import authenticate, Authentication
+from .search import search, ItemIds
+
 from .consts import AVAILABLE_ITEM_TYPES, ORDER_URL, SEARCH_URL
