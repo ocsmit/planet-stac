@@ -1,5 +1,4 @@
 import json
-import os
 from typing import Dict, List, Union, Any
 from dataclasses import dataclass
 import warnings
@@ -38,7 +37,7 @@ def create_PlanetOrder(
 
     po = PlanetOrder(
         id=response["id"],
-        url=ORDER_URL,
+        url=f"{ORDER_URL}/{response['id']}",
         status=response["state"],
         authentication=authentication,
         response=response,
@@ -50,17 +49,18 @@ def create_PlanetOrder(
 update_PlanetOrder = create_PlanetOrder
 
 
-def set_tools(self, geom):
+def set_tools(geom):
     # What is best practice? Have tools defined at initialization as
     # parameters or call seperatly to update the request?
-    tools = {}
-    tools["tools"] = [{"clip": {"aoi": geom}}]
+    # tools = {}
+    # tools["tools"] = [{"clip": {"aoi": geom}}]
+    tools = [{"clip": {"aoi": geom}}]
     return tools
 
 
 def construct_order_request(
-    name,
-    product_bundle,
+    name: str,
+    product_bundle: str,
     items: ItemIds,
     tools=None,
     stac: bool = False,
@@ -90,29 +90,8 @@ def check_order_response(response: Response) -> None:
     elif response.ok != True:
         raise Exception(
             f"ERROR: unsuccessful request, Got response code"
-            f"{response.status_code}, reason is {response.reason}"
+            f" {response.status_code}, reason is {response.reason}"
         )
-
-
-def place_order(order_request: Dict[str, Union[str, Any]], **kwargs) -> PlanetOrder:
-    authentication = authenticate(**kwargs)
-    # Add logic to check if valid request format
-    response = requests.post(
-        ORDER_URL,
-        data=json.dumps(order_request),
-        auth=authentication.auth,
-        headers=HEADERS,
-    )
-
-    check_order_response(response)
-
-    return create_PlanetOrder(response.json(), authentication)
-
-
-def order_status(order: PlanetOrder, **kwargs) -> PlanetOrder:
-    authentication = order.authentication
-    order.status = requests.get(order.url, auth=authentication.auth).json()["state"]
-    return order
 
 
 def get_order(order: Union[str, PlanetOrder], **kwargs) -> PlanetOrder:
@@ -133,34 +112,53 @@ def get_order(order: Union[str, PlanetOrder], **kwargs) -> PlanetOrder:
     return order
 
 
-def cancel(order: Union[str, PlanetOrder], **kwargs) -> PlanetOrder:
+def cancel_order(order: Union[str, PlanetOrder], **kwargs) -> PlanetOrder:
     """
     Cancel order that has been placed.
     NOTE: If order request has reached "running" state then it can
           no longer be canceled
     """
-    if isinstance(order, str):
-        authentication = authenticate(**kwargs)
-        order_url = f"{ORDER_URL}/{order}"
-    elif isinstance(order, PlanetOrder):
-        authentication = order.authentication
-        order_url = order.url
-    else:
-        raise Exception("Provide either order id or PlanetOrder object")
 
-    response = requests.get(order_url, auth=authentication.auth)
-    check_order_response(response)
-    # Create/Update PlanetOrder object
-    order = update_PlanetOrder(response.json(), authentication)
-
+    order = get_order(order)
     # Check if order has been placed
     if order.status == "running":
         warnings.warn(
             UserWarning("Cancel Warning, order status has already started running")
         )
     else:
-        response = requests.put(order_url, auth=authentication.auth)
-        assert response.ok == True, response.text
+        response = requests.put(order.url, auth=order.authentication.auth)
+        ok = response.ok
+        assert ok == True, response.text
         order.status = "canceled"
 
+    return order
+
+
+def place_order(
+    order_request: Dict[str, Union[str, Any]], dry=False, **kwargs
+) -> PlanetOrder:
+    authentication = authenticate(**kwargs)
+    # Add logic to check if valid request format
+    response = requests.post(
+        ORDER_URL,
+        data=json.dumps(order_request),
+        auth=authentication.auth,
+        headers=HEADERS,
+    )
+
+    id = response.json()["id"]
+
+    # Immediatly cancel to see response (Better way?)
+    if dry == True:
+        return cancel_order(id)
+
+    check_order_response(response)
+
+    return create_PlanetOrder(response=response.json(), authentication=authentication)
+    # return get_order(id)
+
+
+def order_status(order: PlanetOrder, **kwargs) -> PlanetOrder:
+    authentication = order.authentication
+    order.status = requests.get(order.url, auth=authentication.auth).json()["state"]
     return order

@@ -1,25 +1,43 @@
 import pytest
+from planetstac import ItemIds
+
+
+IDS = ["20180831_152918_1033", "20180830_153042_0f52"]
+ITEMTYPE = "PSScene"
+PRODUCT_BUNDLE = "analytic_sr_udm2"
+GEOM = {
+    "type": "Polygon",
+    "coordinates": [
+        [
+            [-78.67905020713806, 35.780212341409914],
+            [-78.67378234863281, 35.780212341409914],
+            [-78.67378234863281, 35.782684221280086],
+            [-78.67905020713806, 35.782684221280086],
+            [-78.67905020713806, 35.780212341409914],
+        ]
+    ],
+}
+
+
+@pytest.fixture
+def item_types():
+    return {
+        "FAIL": "BAD",
+        "PASS": "PSScene",
+    }
+
+
+@pytest.fixture
+def valid_items():
+    return ItemIds(ITEMTYPE, IDS)
 
 
 @pytest.fixture
 def search_filter():
-    geom = {
-        "type": "Polygon",
-        "coordinates": [
-            [
-                [-78.67905020713806, 35.780212341409914],
-                [-78.67378234863281, 35.780212341409914],
-                [-78.67378234863281, 35.782684221280086],
-                [-78.67905020713806, 35.782684221280086],
-                [-78.67905020713806, 35.780212341409914],
-            ]
-        ],
-    }
-
     geometry_filter = {
         "type": "GeometryFilter",
         "field_name": "geometry",
-        "config": geom,
+        "config": GEOM,
     }
 
     # filter images acquired in a certain date range
