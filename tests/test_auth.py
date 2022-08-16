@@ -4,7 +4,7 @@ from planetstac.auth import Authentication, authenticate
 
 
 def test_authenticate_success():
-    auth = authenticate("BAD")
+    auth = authenticate()
     assert auth.ok == True, f"Authenticate failed when not supposed to"
 
 
