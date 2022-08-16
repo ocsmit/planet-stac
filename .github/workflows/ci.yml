@@ -36,7 +36,8 @@ jobs:
         run: poetry install --no-interaction --no-root
 
       - name: Run tests
-        env: PL_API_KEY: ${{ secrets.PL_API_KEY }}
+        env:
+          PL_API_KEY: ${{ secrets.PL_API_KEY }}
         run: |
           poetry run pytest -v
 
