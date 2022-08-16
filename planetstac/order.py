@@ -54,7 +54,11 @@ def set_tools(geom):
     # parameters or call seperatly to update the request?
     # tools = {}
     # tools["tools"] = [{"clip": {"aoi": geom}}]
-    tools = [{"clip": {"aoi": geom}}]
+    tools = [
+        {
+            "clip": {"aoi": geom},
+        },
+    ]
     return tools
 
 
