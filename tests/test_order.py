@@ -63,6 +63,7 @@ def test_order_construct(correct_order_request, correct_tools):
     assert req == correct_order_request
 
 
+@pytest.mark.skip("Only test ordering sparingly")
 def test_place_order(correct_order_request):
     time.sleep(1.5)
     order = place_order(correct_order_request, dry=False)
