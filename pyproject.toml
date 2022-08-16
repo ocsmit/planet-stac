@@ -15,6 +15,7 @@ executionEnvironments = [
   { root = "planetstac" }
 ]
 
+
 [tool.poetry]
 name = "planetstac"
 version = "0.1.0"
@@ -23,7 +24,7 @@ authors = ["ocsmit <osmith2@ncsu.edu>"]
 license = "MIT"
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python="^3.8"
 requests = "^2.28.1"
 
 [tool.poetry.dev-dependencies]
