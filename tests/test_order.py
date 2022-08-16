@@ -5,9 +5,9 @@ from planetstac.order import (
     create_PlanetOrder,
     construct_order_request,
     place_order,
-    set_tools,
     cancel_order,
 )
+from planetstac.order_tools import set_tools
 from planetstac import ItemIds
 
 from .helpers import search_filter, IDS, ITEMTYPE, PRODUCT_BUNDLE, GEOM
@@ -18,19 +18,41 @@ def correct_tools():
     tools = [
         {
             "clip": {"aoi": GEOM},
+            "composite": {},
+            "coregister": {
+                "anchor_item": IDS[0],
+            },
+            "file_format": {"format": "COG"},
+            "harmonize": {
+                "target_sensor": "Sentinel-2",
+            },
+            "bandmath": {
+                "b1": "b1",
+                "b2": "b2",
+                "b3": "b3",
+                "b4": "arctan(b1)",
+                "b5": "(b4-b3)/(b4+b3)",
+            },
         },
     ]
-
     return tools
 
 
 def test_tools(correct_tools):
-    tools = set_tools(GEOM)
+    print(correct_tools)
+    tools = set_tools(
+        clip_aoi=GEOM,
+        fileformat="COG",
+        coregister_item=IDS[0],
+        harmonization_target="Sentinel-2",
+        bandmath=["b1", "b2", "b3", "arctan(b1)", "(b4-b3)/(b4+b3)"],
+        composite=True,
+    )
     assert tools == correct_tools
 
 
 @pytest.fixture()
-def correct_order_request():
+def correct_order_request(correct_tools):
     req = {
         "name": "api-test",
         "products": [
@@ -43,11 +65,7 @@ def correct_order_request():
         "metadata": {
             "stac": {},
         },
-        "tools": [
-            {
-                "clip": {"aoi": GEOM},
-            },
-        ],
+        "tools": correct_tools,
     }
     return req
 
